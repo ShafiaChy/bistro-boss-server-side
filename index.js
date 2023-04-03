@@ -5,7 +5,6 @@ const port = process.env.PORT || 5000;
 const { MongoClient, ServerApiVersion, ObjectId } = require("mongodb");
 // RsfwTCSOfaPAGz9l
 const app = express();
-//comment added
 
 // middleware
 app.use(cors());
@@ -27,9 +26,6 @@ const users = [
 async function run() {
   try {
     const userCollection = client.db("bistro-boss").collection("users");
-    // const user = {name: 'Nahiya Mahi', email: 'nehi@gmail.com'}
-    // const result = await userCollection.insertOne(user);
-    // console.log(result);
 
     app.get("/users", async (req, res) => {
       const cursor = userCollection.find({});
