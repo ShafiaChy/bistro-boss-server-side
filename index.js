@@ -18,25 +18,36 @@ const client = new MongoClient(uri, {
   useUnifiedTopology: true,
   serverApi: ServerApiVersion.v1,
 });
-const users = [
-  { id: 1, name: "Sabana", email: "sabana@gmail.com" },
-  { id: 2, name: "Sabnoor", email: "sabnoor@gmail.com" },
-  { id: 3, name: "Sabila", email: "sabila@gmail.com" },
-];
+
 async function run() {
   try {
-    const userCollection = client.db("bistro-boss").collection("users");
+    const database = client.db("bistro-boss");
+    const userCollection = database.collection("users");
+    const itemsCollection = database.collection("items");
+
+    // GET API
+    app.get('/items', async (req, res) => {
+      const cursor = itemsCollection.find({})
+      const products = await cursor.toArray()
+      res.send(products)
+    })
+
+    // POST API
+    app.post('/addItems', async (req, res) => {
+      const product = req.body
+      const result = await itemsCollection.insertOne(product)
+      res.json(result)
+    })
 
     app.get("/users", async (req, res) => {
       const cursor = userCollection.find({});
       const users = await cursor.toArray();
       res.send(users);
     });
+
   } finally {
   }
 }
-
-run().catch((err) => console.log(err));
 
 run().catch((err) => console.log(err));
 
