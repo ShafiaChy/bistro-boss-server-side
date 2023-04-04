@@ -1,11 +1,14 @@
 const express = require("express");
 const cors = require("cors");
-require("dotenv").config();
-const port = process.env.PORT || 5000;
+
 const { MongoClient, ServerApiVersion, ObjectId } = require("mongodb");
-// RsfwTCSOfaPAGz9l
+require("dotenv").config();
+const stripe = require("stripe")(
+  "sk_test_51KDCwXHsUlB2Uq28DaSvt5Y3RE5zsPzYMRiLATosu3Ewszs78bylCRvPcpYaxpCMRR6nwNiSFuCvtFmaKdHCZy1N00f00KdBqH"
+);
+
+const port = process.env.PORT || 5000;
 const app = express();
-//comment added
 
 // middleware
 app.use(cors());
@@ -27,15 +30,47 @@ const users = [
 async function run() {
   try {
     const userCollection = client.db("bistro-boss").collection("users");
-    // const user = {name: 'Nahiya Mahi', email: 'nehi@gmail.com'}
-    // const result = await userCollection.insertOne(user);
-    // console.log(result);
+    const paymentsCollection = client.db("bistro-boss").collection("payment");
 
     app.get("/users", async (req, res) => {
       const cursor = userCollection.find({});
       const users = await cursor.toArray();
       res.send(users);
     });
+
+    app.post("/create-payment-intent", async (req, res) => {
+      const order = req.body;
+      const price = order.price;
+      const amount = price * 100;
+
+      const paymentIntent = await stripe.paymentIntents.create({
+        currency: "usd",
+        amount: amount,
+        payment_method_types: ["card"],
+      });
+      console.log(paymentIntent.client_secret);
+      res.send({
+        clientSecret: paymentIntent.client_secret,
+      });
+    });
+
+    // app.post("/payments", async (req, res) => {
+    //   const payment = req.body;
+    //   const result = await paymentsCollection.insertOne(payment);
+    //   const id = payment.orderId;
+    //   const filter = { _id: ObjectId(id) };
+    //   const updatedDoc = {
+    //     $set: {
+    //       paid: true,
+    //       transactionId: payment.transactionId,
+    //     },
+    //   };
+    //   const updatedResult = await bookingsCollection.updateOne(
+    //     filter,
+    //     updatedDoc
+    //   );
+    //   res.send(result);
+    // });
   } finally {
   }
 }
