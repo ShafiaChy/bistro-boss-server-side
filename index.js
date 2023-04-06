@@ -7,6 +7,9 @@ const stripe = require("stripe")(
   "sk_test_51KDCwXHsUlB2Uq28DaSvt5Y3RE5zsPzYMRiLATosu3Ewszs78bylCRvPcpYaxpCMRR6nwNiSFuCvtFmaKdHCZy1N00f00KdBqH"
 );
 
+const nodemailer = require("nodemailer");
+const mg = require("nodemailer-mailgun-transport");
+
 const port = process.env.PORT || 5000;
 const app = express();
 
@@ -23,6 +26,53 @@ const client = new MongoClient(uri, {
   serverApi: ServerApiVersion.v1,
 });
 
+function sendBookingEmail(booking) {
+  const { email, name, bookingDate, selectedTime } = booking;
+
+  const auth = {
+    auth: {
+      api_key: "c4c1d0868d5aafad39d42ff510c061b5-81bd92f8-6f267a89",
+      domain: "sandboxa6d7ee93b5f1492c8c6bfb3949a16e2d.mailgun.org",
+    },
+  };
+
+  const transporter = nodemailer.createTransport(mg(auth));
+
+  // let transporter = nodemailer.createTransport({
+  //     host: 'smtp.sendgrid.net',
+  //     port: 587,
+  //     auth: {
+  //         user: "apikey",
+  //         pass: process.env.SENDGRID_API_KEY
+  //     }
+  // });
+  console.log("sending email", email);
+
+  transporter.sendMail(
+    {
+      from: "shafia13.ph@gmail.com", // verified sender email
+      to: email || "shafiarahmanchy13@gmail.com", // recipient email
+      subject: `Your booking for ${name} is confirmed`, // Subject line
+      text: "Hello world!", // plain text body
+      html: `
+      <h3>Your appointment is confirmed</h3>
+      <div>
+          <p>Your booking for: ${name} is successful</p>
+          <p>Please visit us on ${bookingDate} at ${selectedTime}</p>
+          <p>Thanks from Doctors Portal.</p>
+      </div>
+      
+      `, // html body
+    },
+    function (error, info) {
+      if (error) {
+        console.log("Email send error", error);
+      } else {
+        console.log("Email sent: " + info);
+      }
+    }
+  );
+}
 async function run() {
   try {
     const database = client.db("bistro-boss");
@@ -30,6 +80,7 @@ async function run() {
     const usersCollection = database.collection("users");
     const itemsCollection = database.collection("items");
     const cartsCollection = database.collection("carts");
+    const bookingsCollection = database.collection("bookings");
 
     //GET USERS API
     app.get("/users", async (req, res) => {
@@ -84,6 +135,14 @@ async function run() {
 
       res.send(cart);
     });
+    //GET A USER'S CART
+    app.get("/bookings", async (req, res) => {
+      const email = req.query.email;
+      const bookingQuery = { email: email };
+      const booking = await bookingsCollection.find(bookingQuery).toArray();
+
+      res.send(booking);
+    });
 
     //POST A USER'S CART
     app.post("/carts", async (req, res) => {
@@ -92,6 +151,18 @@ async function run() {
       // TODO: make sure you do not enter duplicate user email
       // only insert users if the user doesn't exist in the database
       const result = await cartsCollection.insertOne(carts);
+      console.log(result);
+      res.send(result);
+    });
+
+    //POST A USER'S CART
+    app.post("/bookings", async (req, res) => {
+      const bookings = req.body;
+      console.log(bookings);
+      // TODO: make sure you do not enter duplicate user email
+      // only insert users if the user doesn't exist in the database
+      const result = await bookingsCollection.insertOne(bookings);
+      sendBookingEmail(bookings);
       console.log(result);
       res.send(result);
     });
