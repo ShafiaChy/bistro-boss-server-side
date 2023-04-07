@@ -31,8 +31,8 @@ function sendBookingEmail(booking) {
 
   const auth = {
     auth: {
-      api_key: "c4c1d0868d5aafad39d42ff510c061b5-81bd92f8-6f267a89",
-      domain: "sandboxa6d7ee93b5f1492c8c6bfb3949a16e2d.mailgun.org",
+      api_key: "6dc2f6f132579e6f9f815022840b9041-48c092ba-4b0af74e",
+      domain: "sandbox9ebae96ecf154d508f3f35678d1787db.mailgun.org",
     },
   };
 
@@ -50,8 +50,8 @@ function sendBookingEmail(booking) {
 
   transporter.sendMail(
     {
-      from: "shafia13.ph@gmail.com", // verified sender email
-      to: email || "shafiarahmanchy13@gmail.com", // recipient email
+      from: "shafia@programming-hero.com", // verified sender email
+      to: "shafiarahmanchy13@gmail.com", // recipient email
       subject: `Your booking for ${name} is confirmed`, // Subject line
       text: "Hello world!", // plain text body
       html: `
@@ -59,7 +59,7 @@ function sendBookingEmail(booking) {
       <div>
           <p>Your booking for: ${name} is successful</p>
           <p>Please visit us on ${bookingDate} at ${selectedTime}</p>
-          <p>Thanks from Doctors Portal.</p>
+          <p>Thanks from Bistro Boss.</p>
       </div>
       
       `, // html body
@@ -81,6 +81,7 @@ async function run() {
     const itemsCollection = database.collection("items");
     const cartsCollection = database.collection("carts");
     const bookingsCollection = database.collection("bookings");
+    const reviewsCollection = database.collection("reviews");
 
     //GET USERS API
     app.get("/users", async (req, res) => {
@@ -96,30 +97,81 @@ async function run() {
       res.send(result);
     });
 
-    // GET MENU ITEMS
-    app.get("/items", async (req, res) => {
-      const cursor = itemsCollection.find({});
-      const products = await cursor.toArray();
-      res.send(products);
+    app.delete("/users/:id", async (req, res) => {
+      const id = req.params.id;
+      console.log(id);
+      const filter = { _id: new ObjectId(id) };
+      const result = await usersCollection.deleteOne(filter);
+      res.send(result);
     });
 
-    //GET SHOP ITEMS
-    app.get("/shopitem", async (req, res) => {
+    app.put("/users/admin/:id", async (req, res) => {
+      const id = req.params.id;
+      const filter = { _id: new ObjectId(id) };
+      const options = { upsert: true };
+      const updatedDoc = {
+        $set: {
+          role: "admin",
+        },
+      };
+      const result = await usersCollection.updateOne(
+        filter,
+        updatedDoc,
+        options
+      );
+      res.send(result);
+    });
+
+    //GET ITEMS
+    app.get("/items", async (req, res) => {
       const page = parseInt(req.query.page);
       const size = parseInt(req.query.size);
       const category = req.query.category;
       const query = { category: category };
 
-      const cursor = itemsCollection.find(query);
-      const products = await cursor
-        .skip(page * size)
-        .limit(size)
-        .toArray();
+      if (size && category) {
+        const cursor = itemsCollection.find(query);
+        const products = await cursor
+          .skip(page * size)
+          .limit(size)
+          .toArray();
 
-      const count = await itemsCollection.countDocuments(query);
-      res.send({ count, products });
+        const count = await itemsCollection.countDocuments(query);
+        res.send({ count, products });
+      } else {
+        const cursor = itemsCollection.find({});
+        const products = await cursor.toArray();
+        res.send(products);
+      }
     });
 
+    //UPDATE ITEM
+    app.patch("/items/:id", async (req, res) => {
+      const id = req.params.id;
+      console.log(id);
+      const items = req.body;
+      console.log(items);
+      const query = { _id: new ObjectId(id) };
+      const updatedDoc = {
+        $set: {
+          ...(items.name && { name: items.name }),
+          ...(items.recipe && { recipe: items.recipe }),
+          ...(items.image && { image: items.image }),
+          ...(items.price && { price: items.price }),
+          ...(items.category && { category: items.category }),
+        },
+      };
+      const result = await itemsCollection.updateOne(query, updatedDoc);
+      res.send(result);
+    });
+    //DELETE ITEMS
+    app.delete("/items/:id", async (req, res) => {
+      const id = req.params.id;
+      console.log(id);
+      const filter = { _id: new ObjectId(id) };
+      const result = await itemsCollection.deleteOne(filter);
+      res.send(result);
+    });
     // POST ITEMS API
     app.post("/addItems", async (req, res) => {
       const product = req.body;
@@ -135,13 +187,37 @@ async function run() {
 
       res.send(cart);
     });
-    //GET A USER'S CART
+    //GET Bookings
     app.get("/bookings", async (req, res) => {
       const email = req.query.email;
-      const bookingQuery = { email: email };
-      const booking = await bookingsCollection.find(bookingQuery).toArray();
+      console.log(email);
+      if (email) {
+        const bookingQuery = { email: email };
+        const booking = await bookingsCollection.find(bookingQuery).toArray();
+        res.send(booking);
+      } else {
+        const booking = await bookingsCollection.find({}).toArray();
 
-      res.send(booking);
+        res.send(booking);
+      }
+    });
+
+    app.patch("/bookings/:id", async (req, res) => {
+      const id = req.params.id;
+      console.log(id);
+      const filter = { _id: new ObjectId(id) };
+      const options = { upsert: true };
+      const updatedDoc = {
+        $set: {
+          status: "approved",
+        },
+      };
+      const result = await bookingsCollection.updateOne(
+        filter,
+        updatedDoc,
+        options
+      );
+      res.send(result);
     });
 
     //POST A USER'S CART
@@ -223,6 +299,23 @@ async function run() {
     //     const user = await usersCollection.findOne(query);
     //     res.send({ isAdmin: user?.role === 'admin' });
     // })
+
+    //POST REVIEWS
+
+    app.post("/reviews", async (req, res) => {
+      const reviews = req.body;
+      console.log(reviews);
+      // TODO: make sure you do not enter duplicate user email
+      // only insert users if the user doesn't exist in the database
+      const result = await reviewsCollection.insertOne(reviews);
+      res.send(result);
+    });
+
+    app.get("/reviews", async (req, res) => {
+      const query = {};
+      const reviews = await reviewsCollection.find(query).toArray();
+      res.send(reviews);
+    });
   } finally {
   }
 }
