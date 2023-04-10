@@ -3,9 +3,9 @@ const cors = require("cors");
 
 const { MongoClient, ServerApiVersion, ObjectId } = require("mongodb");
 require("dotenv").config();
-const stripe = require("stripe")(
-  "sk_test_51KDCwXHsUlB2Uq28DaSvt5Y3RE5zsPzYMRiLATosu3Ewszs78bylCRvPcpYaxpCMRR6nwNiSFuCvtFmaKdHCZy1N00f00KdBqH"
-);
+
+const jwt = require("jsonwebtoken");
+const stripe = require("stripe")(process.env.STRIPE_SECRET_KEY);
 
 const nodemailer = require("nodemailer");
 const mg = require("nodemailer-mailgun-transport");
@@ -31,21 +31,13 @@ function sendBookingEmail(booking) {
 
   const auth = {
     auth: {
-      api_key: "6dc2f6f132579e6f9f815022840b9041-48c092ba-4b0af74e",
-      domain: "sandbox9ebae96ecf154d508f3f35678d1787db.mailgun.org",
+      api_key: process.env.EMAIL_SEND_KEY,
+      domain: process.env.EMAIL_SEND_DOMAIN,
     },
   };
 
   const transporter = nodemailer.createTransport(mg(auth));
 
-  // let transporter = nodemailer.createTransport({
-  //     host: 'smtp.sendgrid.net',
-  //     port: 587,
-  //     auth: {
-  //         user: "apikey",
-  //         pass: process.env.SENDGRID_API_KEY
-  //     }
-  // });
   console.log("sending email", email);
 
   transporter.sendMail(
@@ -73,6 +65,28 @@ function sendBookingEmail(booking) {
     }
   );
 }
+
+function verifyJWT(req, res, next) {
+  const authHeader = req.headers.authorization;
+
+  if (!authHeader) {
+    return res.status(401).json({
+      success: false,
+      message: "forbidden access",
+    });
+  }
+
+  const token = authHeader.split(" ")[1];
+
+  jwt.verify(token, process.env.ACCESS_TOKEN, function (err, decoded) {
+    if (err) {
+      console.log(err);
+      return res.status(403).send({ message: "forbidden access" });
+    }
+    req.decoded = decoded;
+    next();
+  });
+}
 async function run() {
   try {
     const database = client.db("bistro-boss");
@@ -82,6 +96,37 @@ async function run() {
     const cartsCollection = database.collection("carts");
     const bookingsCollection = database.collection("bookings");
     const reviewsCollection = database.collection("reviews");
+
+    const verifyAdmin = async (req, res, next) => {
+      const decodedEmail = req.decoded.email;
+      console.log(decodedEmail, "hi");
+      const query = { email: decodedEmail };
+      const user = await usersCollection.findOne(query);
+
+      if (user?.role !== "admin") {
+        return res.status(403).send({ message: "forbidden access" });
+      }
+      next();
+    };
+
+    app.get("/jwt", async (req, res) => {
+      const email = req.query.email;
+      const query = { email: email };
+      const user = await usersCollection.findOne(query);
+      if (user) {
+        const token = jwt.sign({ email }, process.env.ACCESS_TOKEN, {
+          expiresIn: "3h",
+        });
+        return res.status(200).json({
+          success: true,
+          accessToken: token,
+        });
+      }
+      res.status(403).json({
+        success: false,
+        message: "Forbidden User",
+      });
+    });
 
     //GET USERS API
     app.get("/users", async (req, res) => {
@@ -97,7 +142,7 @@ async function run() {
       res.send(result);
     });
 
-    app.delete("/users/:id", async (req, res) => {
+    app.delete("/users/:id", verifyJWT, verifyAdmin, async (req, res) => {
       const id = req.params.id;
       console.log(id);
       const filter = { _id: new ObjectId(id) };
@@ -105,7 +150,15 @@ async function run() {
       res.send(result);
     });
 
-    app.put("/users/admin/:id", async (req, res) => {
+    app.get("/users/admin/:email", async (req, res) => {
+      const email = req.params.email;
+      console.log(email);
+      const query = { email };
+      const user = await usersCollection.findOne(query);
+      res.send({ isAdmin: user?.role === "admin" });
+    });
+
+    app.put("/users/admin/:id", verifyJWT, verifyAdmin, async (req, res) => {
       const id = req.params.id;
       const filter = { _id: new ObjectId(id) };
       const options = { upsert: true };
@@ -180,7 +233,7 @@ async function run() {
     });
 
     //GET A USER'S CART
-    app.get("/carts", async (req, res) => {
+    app.get("/carts", verifyJWT, async (req, res) => {
       const email = req.query.email;
       const cartQuery = { email: email };
       const cart = await cartsCollection.find(cartQuery).toArray();
@@ -188,9 +241,8 @@ async function run() {
       res.send(cart);
     });
     //GET Bookings
-    app.get("/bookings", async (req, res) => {
+    app.get("/bookings", verifyJWT, async (req, res) => {
       const email = req.query.email;
-      console.log(email);
       if (email) {
         const bookingQuery = { email: email };
         const booking = await bookingsCollection.find(bookingQuery).toArray();
@@ -202,7 +254,7 @@ async function run() {
       }
     });
 
-    app.patch("/bookings/:id", async (req, res) => {
+    app.patch("/bookings/:id", verifyJWT, verifyAdmin, async (req, res) => {
       const id = req.params.id;
       console.log(id);
       const filter = { _id: new ObjectId(id) };
@@ -217,7 +269,11 @@ async function run() {
         updatedDoc,
         options
       );
-      res.send(result);
+
+      return res.status(200).json({
+        success: true,
+        result: result,
+      });
     });
 
     //POST A USER'S CART
@@ -267,6 +323,13 @@ async function run() {
       res.send(result);
     });
 
+    app.delete("/bookings/:email", verifyJWT, async (req, res) => {
+      const email = req.params.email;
+      const filter = { email: email };
+      const result = await bookingsCollection.deleteOne(filter);
+      res.send(result);
+    });
+
     app.get("/payments", async (req, res) => {
       const email = req.query.email;
       const paymentQuery = { email: email };
@@ -281,24 +344,6 @@ async function run() {
 
       res.send(result);
     });
-
-    //   app.get('/jwt', async (req, res) => {
-    //     const email = req.query.email;
-    //     const query = { email: email };
-    //     const user = await usersCollection.findOne(query);
-    //     if (user) {
-    //         const token = jwt.sign({ email }, process.env.ACCESS_TOKEN, { expiresIn: '1h' })
-    //         return res.send({ accessToken: token });
-    //     }
-    //     res.status(403).send({ accessToken: '' })
-    // });
-
-    //   app.get('/users/admin/:email', async (req, res) => {
-    //     const email = req.params.email;
-    //     const query = { email }
-    //     const user = await usersCollection.findOne(query);
-    //     res.send({ isAdmin: user?.role === 'admin' });
-    // })
 
     //POST REVIEWS
 
