@@ -232,6 +232,12 @@ async function run() {
       res.json(result);
     });
 
+    //GET ALL USER'S CART/ Orders
+    app.get("/orders", async (req, res) => {
+      const orders = await cartsCollection.find({}).toArray();
+      res.send(orders);
+    });
+
     //GET A USER'S CART
     app.get("/carts", verifyJWT, async (req, res) => {
       const email = req.query.email;
