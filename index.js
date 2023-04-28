@@ -232,6 +232,12 @@ async function run() {
       res.json(result);
     });
 
+    //GET ALL USER'S CART/ Orders
+    app.get("/orders", async (req, res) => {
+      const orders = await cartsCollection.find({}).toArray();
+      res.send(orders);
+    });
+
     //GET A USER'S CART
     app.get("/carts", verifyJWT, async (req, res) => {
       const email = req.query.email;
@@ -335,6 +341,12 @@ async function run() {
       const paymentQuery = { email: email };
       const payment = await paymentsCollection.find(paymentQuery).toArray();
 
+      res.send(payment);
+    });
+
+    // all payment
+    app.get("/allPayments", async (req, res) => {
+      const payment = await paymentsCollection.find({}).toArray();
       res.send(payment);
     });
 
