@@ -322,7 +322,6 @@ async function run() {
       const id = req.query.id;
       const deleteOption = req.query.delete;
       console.log(deleteOption);
-
       if (deleteOption == "true") {
         console.log(deleteOption);
         const result = await cartsCollection.deleteMany({ email: email });
@@ -345,20 +344,9 @@ async function run() {
 
     app.get("/payments", async (req, res) => {
       const email = req.query.email;
-      if (email) {
-        const paymentQuery = { email: email };
-        const payment = await paymentsCollection.find(paymentQuery).toArray();
-        res.send(payment);
-      } else {
-        const payment = await paymentsCollection.find({}).toArray();
-        res.send(payment);
-      }
-    });
+      const paymentQuery = { email: email };
+      const payment = await paymentsCollection.find(paymentQuery).toArray();
 
-
-    // all payment
-    app.get("/allPayments", async (req, res) => {
-      const payment = await paymentsCollection.find({}).toArray();
       res.send(payment);
     });
 
