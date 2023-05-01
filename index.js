@@ -355,6 +355,13 @@ async function run() {
       }
     });
 
+
+    // all payment
+    app.get("/allPayments", async (req, res) => {
+      const payment = await paymentsCollection.find({}).toArray();
+      res.send(payment);
+    });
+
     app.post("/payments", async (req, res) => {
       const payment = req.body;
       const result = await paymentsCollection.insertOne(payment);
