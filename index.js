@@ -232,12 +232,6 @@ async function run() {
       res.json(result);
     });
 
-    //GET ALL USER'S CART/ Orders
-    app.get("/orders", async (req, res) => {
-      const orders = await cartsCollection.find({}).toArray();
-      res.send(orders);
-    });
-
     //GET A USER'S CART
     app.get("/carts", verifyJWT, async (req, res) => {
       const email = req.query.email;
@@ -372,6 +366,13 @@ async function run() {
     app.get("/reviews", async (req, res) => {
       const query = {};
       const reviews = await reviewsCollection.find(query).toArray();
+      res.send(reviews);
+    });
+
+    app.get("/review", async (req, res) => {
+      const email = req.query.email;
+      console.log(email);
+      const reviews = await reviewsCollection.find({ email: email }).toArray();
       res.send(reviews);
     });
   } finally {
