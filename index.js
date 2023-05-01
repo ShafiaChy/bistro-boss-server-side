@@ -344,6 +344,7 @@ async function run() {
       res.send(payment);
     });
 
+
     // all payment
     app.get("/allPayments", async (req, res) => {
       const payment = await paymentsCollection.find({}).toArray();
