@@ -317,6 +317,13 @@ async function run() {
       });
     });
 
+    app.delete("/carts/:email", async (req, res) => {
+      const email = req.params.email;
+      const filter = { email: email };
+      const result = await cartsCollection.deleteOne(filter);
+      res.send(result);
+    });
+
     app.delete("/carts", async (req, res) => {
       const email = req.query.email;
       const id = req.query.id;
@@ -347,6 +354,13 @@ async function run() {
       const paymentQuery = { email: email };
       const payment = await paymentsCollection.find(paymentQuery).toArray();
 
+      res.send(payment);
+    });
+
+
+    // all payment
+    app.get("/allPayments", async (req, res) => {
+      const payment = await paymentsCollection.find({}).toArray();
       res.send(payment);
     });
 
@@ -389,6 +403,7 @@ async function run() {
 
       res.send(coupon);
     });
+
   } finally {
   }
 }
