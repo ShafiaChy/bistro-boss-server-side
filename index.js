@@ -96,6 +96,7 @@ async function run() {
     const cartsCollection = database.collection("carts");
     const bookingsCollection = database.collection("bookings");
     const reviewsCollection = database.collection("reviews");
+    const couponsCollection = database.collection("coupons");
 
     const verifyAdmin = async (req, res, next) => {
       const decodedEmail = req.decoded.email;
@@ -316,11 +317,23 @@ async function run() {
       });
     });
 
-    app.delete("/carts/:email", async (req, res) => {
-      const email = req.params.email;
-      const filter = { email: email };
-      const result = await cartsCollection.deleteOne(filter);
-      res.send(result);
+    app.delete("/carts", async (req, res) => {
+      const email = req.query.email;
+      const id = req.query.id;
+      const deleteOption = req.query.delete;
+      console.log(deleteOption);
+
+      if (deleteOption == "true") {
+        console.log(deleteOption);
+        const result = await cartsCollection.deleteMany({ email: email });
+        return res.send(result);
+      } else {
+        const result = await cartsCollection.deleteOne({
+          email: email,
+          _id: new ObjectId(id),
+        });
+        return res.send(result);
+      }
     });
 
     app.delete("/bookings/:email", verifyJWT, async (req, res) => {
@@ -367,6 +380,15 @@ async function run() {
       console.log(email);
       const reviews = await reviewsCollection.find({ email: email }).toArray();
       res.send(reviews);
+    });
+
+    app.get("/coupons", async (req, res) => {
+      const coupon_code = req.query.coupon_code;
+      console.log(coupon_code);
+      const query = { coupon_code: coupon_code };
+      const coupon = await couponsCollection.find(query).toArray();
+
+      res.send(coupon);
     });
   } finally {
   }
