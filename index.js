@@ -345,10 +345,14 @@ async function run() {
 
     app.get("/payments", async (req, res) => {
       const email = req.query.email;
-      const paymentQuery = { email: email };
-      const payment = await paymentsCollection.find(paymentQuery).toArray();
-
-      res.send(payment);
+      if (email) {
+        const paymentQuery = { email: email };
+        const payment = await paymentsCollection.find(paymentQuery).toArray();
+        res.send(payment);
+      } else {
+        const payment = await paymentsCollection.find({}).toArray();
+        res.send(payment);
+      }
     });
 
     app.post("/payments", async (req, res) => {
