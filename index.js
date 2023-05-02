@@ -10,6 +10,9 @@ const stripe = require("stripe")(process.env.STRIPE_SECRET_KEY);
 const nodemailer = require("nodemailer");
 const mg = require("nodemailer-mailgun-transport");
 
+const easyinvoice = require('easyinvoice');
+const fs = require('fs');
+
 const port = process.env.PORT || 5000;
 const app = express();
 
@@ -42,7 +45,7 @@ function sendBookingEmail(booking) {
 
   transporter.sendMail(
     {
-      from: "shafia@programming-hero.com", // verified sender email
+      from: "shafiarahman572@gmail.com", // verified sender email
       to: "shafiarahmanchy13@gmail.com", // recipient email
       subject: `Your booking for ${name} is confirmed`, // Subject line
       text: "Hello world!", // plain text body
@@ -302,9 +305,9 @@ async function run() {
 
     app.post("/create-payment-intent", async (req, res) => {
       const order = req.body.order;
-      console.log(order.total);
-      const price = parseFloat(order.total);
-      const amount = price * 100;
+      console.log(order);
+      const price = order.total;
+      const amount = parseInt((price * 100).toFixed(0));
 
       const paymentIntent = await stripe.paymentIntents.create({
         currency: "usd",
@@ -312,7 +315,7 @@ async function run() {
         payment_method_types: ["card"],
         receipt_email: order.email,
         description: `Yahh! Your payment is successful! 😇 
-        You have got ${order.coupon}% 💰 💰 with our coupon code. 
+        You have got ${order.coupon}% off 💰 💰 with our coupon code. 
         You paid: $${amount}
         =========================
         Enjoy your Food 🍽️
@@ -321,17 +324,53 @@ async function run() {
         Bistro Boss 😎
         `,
       });
-      console.log(paymentIntent.client_secret);
+
+      console.log(paymentIntent);
+
+      const data = {
+        "images": {
+          "logo": "https://i.ibb.co/StTsCDg/logo.png",
+          "background": "https://public.easyinvoice.cloud/img/watermark-draft.jpg"
+        },
+        "sender": {
+          "company": "Bistro Boss Restaurant",
+          "address": "123 ABC Street, Uni 21",
+          "zip": "1234 AB",
+          "city": "Kachukhet",
+          "country": "Mongolgroho"
+        },
+        "client": {
+          "custom1": order.name,
+          "custom2": order.email,
+        },
+        "information": {
+          "number": `${new Date().getFullYear()}.${Math.floor(Math.random() * 9000) + 1000}`,
+          "date": order.formattedDate,
+          "due-date": ''
+        },
+
+        "bottom-notice": `Yahh! Your payment is successful! 😇 
+        You have got ${order.coupon}% off 💰 💰 with our coupon code. 
+        You paid: $${amount}
+        =========================
+        Enjoy your Food 🍽️
+        
+        Love,
+        Bistro Boss 😎
+
+        Thank you for believing in us!. 😇 `,
+
+        "settings": {
+          "currency": "USD",
+        },
+      };
+
+      const result = await easyinvoice.createInvoice(data);
+      await fs.writeFileSync("invoice3.pdf", result.pdf, 'base64');
+
       res.send({
         clientSecret: paymentIntent.client_secret,
       });
-    });
-
-    app.delete("/carts/:email", async (req, res) => {
-      const email = req.params.email;
-      const filter = { email: email };
-      const result = await cartsCollection.deleteOne(filter);
-      res.send(result);
     });
 
     app.delete("/carts", async (req, res) => {
