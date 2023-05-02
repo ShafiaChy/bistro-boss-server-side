@@ -10,6 +10,9 @@ const stripe = require("stripe")(process.env.STRIPE_SECRET_KEY);
 const nodemailer = require("nodemailer");
 const mg = require("nodemailer-mailgun-transport");
 
+const easyinvoice = require("easyinvoice");
+const fs = require("fs");
+
 const port = process.env.PORT || 5000;
 const app = express();
 stripe.api_version = "2019-03-14";
@@ -327,13 +330,6 @@ async function run() {
       res.send({
         clientSecret: paymentIntent.client_secret,
       });
-    });
-
-    app.delete("/carts/:email", async (req, res) => {
-      const email = req.params.email;
-      const filter = { email: email };
-      const result = await cartsCollection.deleteOne(filter);
-      res.send(result);
     });
 
     app.delete("/carts", async (req, res) => {
