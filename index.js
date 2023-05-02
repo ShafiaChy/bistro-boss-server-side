@@ -301,7 +301,7 @@ async function run() {
     });
 
     app.post("/create-payment-intent", async (req, res) => {
-      const order = req.body;
+      const order = req.body.order;
       console.log(order.total);
       const price = parseFloat(order.total);
       const amount = price * 100;
@@ -310,6 +310,16 @@ async function run() {
         currency: "usd",
         amount: amount,
         payment_method_types: ["card"],
+        receipt_email: order.email,
+        description: `Yahh! Your payment is successful! 😇 
+        You have got ${order.coupon}% 💰 💰 with our coupon code. 
+        You paid: $${amount}
+        =========================
+        Enjoy your Food 🍽️
+        
+        Love,
+        Bistro Boss 😎
+        `,
       });
       console.log(paymentIntent.client_secret);
       res.send({
