@@ -12,7 +12,7 @@ const mg = require("nodemailer-mailgun-transport");
 
 const port = process.env.PORT || 5000;
 const app = express();
-
+stripe.api_version = "2019-03-14";
 // middleware
 app.use(cors());
 app.use(express.json());
@@ -42,7 +42,7 @@ function sendBookingEmail(booking) {
 
   transporter.sendMail(
     {
-      from: "shafia@programming-hero.com", // verified sender email
+      from: "shafiarahman572@gmail.com", // verified sender email
       to: "shafiarahmanchy13@gmail.com", // recipient email
       subject: `Your booking for ${name} is confirmed`, // Subject line
       text: "Hello world!", // plain text body
@@ -302,17 +302,17 @@ async function run() {
 
     app.post("/create-payment-intent", async (req, res) => {
       const order = req.body.order;
-      console.log(order.total);
-      const price = parseFloat(order.total);
+      // console.log(order.total);
+      const price = parseFloat(order?.total);
       const amount = price * 100;
 
       const paymentIntent = await stripe.paymentIntents.create({
         currency: "usd",
         amount: amount,
         payment_method_types: ["card"],
-        receipt_email: order.email,
+        receipt_email: order?.email,
         description: `Yahh! Your payment is successful! 😇 
-        You have got ${order.coupon}% 💰 💰 with our coupon code. 
+        You have got ${order?.coupon}% 💰 💰 with our coupon code. 
         You paid: $${amount}
         =========================
         Enjoy your Food 🍽️
@@ -321,6 +321,8 @@ async function run() {
         Bistro Boss 😎
         `,
       });
+      console.log(stripe.paymentIntents);
+      stripe.paymentIntents.invoices(paymentIntent, (email = `${order.email}`));
       console.log(paymentIntent.client_secret);
       res.send({
         clientSecret: paymentIntent.client_secret,
@@ -367,7 +369,6 @@ async function run() {
       res.send(payment);
     });
 
-
     // all payment
     app.get("/allPayments", async (req, res) => {
       const payment = await paymentsCollection.find({}).toArray();
@@ -413,7 +414,6 @@ async function run() {
 
       res.send(coupon);
     });
-
   } finally {
   }
 }
