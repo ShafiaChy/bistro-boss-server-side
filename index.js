@@ -1,21 +1,14 @@
 const express = require("express");
 const cors = require("cors");
-
 const { MongoClient, ServerApiVersion, ObjectId } = require("mongodb");
 require("dotenv").config();
-
+const bookingandinvoice = require("./bookingandinvoice.js");
 const jwt = require("jsonwebtoken");
 const stripe = require("stripe")(process.env.STRIPE_SECRET_KEY);
 
-const nodemailer = require("nodemailer");
-const mg = require("nodemailer-mailgun-transport");
-
-const easyinvoice = require("easyinvoice");
-const fs = require("fs");
-
 const port = process.env.PORT || 5000;
 const app = express();
-stripe.api_version = "2019-03-14";
+
 // middleware
 app.use(cors());
 app.use(express.json());
@@ -29,19 +22,18 @@ const client = new MongoClient(uri, {
   serverApi: ServerApiVersion.v1,
 });
 
-function sendBookingEmail(booking) {
+function sendPaymentConfirmation(booking) {
   const { email, name, bookingDate, selectedTime } = booking;
 
-  const auth = {
+  const config = {
+    service: "gmail",
     auth: {
-      api_key: process.env.EMAIL_SEND_KEY,
-      domain: process.env.EMAIL_SEND_DOMAIN,
+      user: "shafiarahman572@gmail.com",
+      pass: "eikbymbhwcrknxjx",
     },
   };
 
-  const transporter = nodemailer.createTransport(mg(auth));
-
-  console.log("sending email", email);
+  const transporter = nodemailer.createTransport(config);
 
   transporter.sendMail(
     {
@@ -83,7 +75,6 @@ function verifyJWT(req, res, next) {
 
   jwt.verify(token, process.env.ACCESS_TOKEN, function (err, decoded) {
     if (err) {
-      console.log(err);
       return res.status(403).send({ message: "forbidden access" });
     }
     req.decoded = decoded;
@@ -103,7 +94,7 @@ async function run() {
 
     const verifyAdmin = async (req, res, next) => {
       const decodedEmail = req.decoded.email;
-      console.log(decodedEmail, "hi");
+
       const query = { email: decodedEmail };
       const user = await usersCollection.findOne(query);
 
@@ -141,14 +132,14 @@ async function run() {
     //POST USERS API
     app.post("/users", async (req, res) => {
       const user = req.body;
-      console.log(user);
+
       const result = await usersCollection.insertOne(user);
       res.send(result);
     });
 
     app.delete("/users/:id", verifyJWT, verifyAdmin, async (req, res) => {
       const id = req.params.id;
-      console.log(id);
+
       const filter = { _id: new ObjectId(id) };
       const result = await usersCollection.deleteOne(filter);
       res.send(result);
@@ -156,7 +147,7 @@ async function run() {
 
     app.get("/users/admin/:email", async (req, res) => {
       const email = req.params.email;
-      console.log(email);
+
       const query = { email };
       const user = await usersCollection.findOne(query);
       res.send({ isAdmin: user?.role === "admin" });
@@ -205,9 +196,9 @@ async function run() {
     //UPDATE ITEM
     app.patch("/items/:id", async (req, res) => {
       const id = req.params.id;
-      console.log(id);
+
       const items = req.body;
-      console.log(items);
+
       const query = { _id: new ObjectId(id) };
       const updatedDoc = {
         $set: {
@@ -224,7 +215,7 @@ async function run() {
     //DELETE ITEMS
     app.delete("/items/:id", async (req, res) => {
       const id = req.params.id;
-      console.log(id);
+
       const filter = { _id: new ObjectId(id) };
       const result = await itemsCollection.deleteOne(filter);
       res.send(result);
@@ -260,7 +251,7 @@ async function run() {
 
     app.patch("/bookings/:id", verifyJWT, verifyAdmin, async (req, res) => {
       const id = req.params.id;
-      console.log(id);
+
       const filter = { _id: new ObjectId(id) };
       const options = { upsert: true };
       const updatedDoc = {
@@ -283,50 +274,38 @@ async function run() {
     //POST A USER'S CART
     app.post("/carts", async (req, res) => {
       const carts = req.body;
-      console.log(carts);
+
       // TODO: make sure you do not enter duplicate user email
       // only insert users if the user doesn't exist in the database
       const result = await cartsCollection.insertOne(carts);
-      console.log(result);
+
       res.send(result);
     });
 
     //POST A USER'S CART
     app.post("/bookings", async (req, res) => {
       const bookings = req.body;
-      console.log(bookings);
+
       // TODO: make sure you do not enter duplicate user email
       // only insert users if the user doesn't exist in the database
       const result = await bookingsCollection.insertOne(bookings);
-      sendBookingEmail(bookings);
-      console.log(result);
+      bookingandinvoice.sendBookingEmail(bookings);
+
       res.send(result);
     });
 
     app.post("/create-payment-intent", async (req, res) => {
       const order = req.body.order;
-      // console.log(order.total);
-      const price = parseFloat(order?.total);
-      const amount = price * 100;
+
+      const price = order.total;
+      const amount = parseInt((price * 100).toFixed(0));
 
       const paymentIntent = await stripe.paymentIntents.create({
         currency: "usd",
         amount: amount,
         payment_method_types: ["card"],
-        receipt_email: order?.email,
-        description: `Yahh! Your payment is successful! 😇 
-        You have got ${order?.coupon}% 💰 💰 with our coupon code. 
-        You paid: $${amount}
-        =========================
-        Enjoy your Food 🍽️
-        
-        Love,
-        Bistro Boss 😎
-        `,
       });
-      console.log(stripe.paymentIntents);
-      stripe.paymentIntents.invoices(paymentIntent, (email = `${order.email}`));
-      console.log(paymentIntent.client_secret);
+
       res.send({
         clientSecret: paymentIntent.client_secret,
       });
@@ -336,9 +315,8 @@ async function run() {
       const email = req.query.email;
       const id = req.query.id;
       const deleteOption = req.query.delete;
-      console.log(deleteOption);
+
       if (deleteOption == "true") {
-        console.log(deleteOption);
         const result = await cartsCollection.deleteMany({ email: email });
         return res.send(result);
       } else {
@@ -373,8 +351,9 @@ async function run() {
 
     app.post("/payments", async (req, res) => {
       const payment = req.body;
-      const result = await paymentsCollection.insertOne(payment);
 
+      const result = await paymentsCollection.insertOne(payment);
+      bookingandinvoice.sendPaymentEmail(payment);
       res.send(result);
     });
 
@@ -382,7 +361,7 @@ async function run() {
 
     app.post("/reviews", async (req, res) => {
       const reviews = req.body;
-      console.log(reviews);
+
       // TODO: make sure you do not enter duplicate user email
       // only insert users if the user doesn't exist in the database
       const result = await reviewsCollection.insertOne(reviews);
@@ -397,14 +376,14 @@ async function run() {
 
     app.get("/review", async (req, res) => {
       const email = req.query.email;
-      console.log(email);
+
       const reviews = await reviewsCollection.find({ email: email }).toArray();
       res.send(reviews);
     });
 
     app.get("/coupons", async (req, res) => {
       const coupon_code = req.query.coupon_code;
-      console.log(coupon_code);
+
       const query = { coupon_code: coupon_code };
       const coupon = await couponsCollection.find(query).toArray();
 
