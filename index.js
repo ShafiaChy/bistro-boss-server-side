@@ -22,45 +22,6 @@ const client = new MongoClient(uri, {
   serverApi: ServerApiVersion.v1,
 });
 
-function sendPaymentConfirmation(booking) {
-  const { email, name, bookingDate, selectedTime } = booking;
-
-  const config = {
-    service: "gmail",
-    auth: {
-      user: "shafiarahman572@gmail.com",
-      pass: "eikbymbhwcrknxjx",
-    },
-  };
-
-  const transporter = nodemailer.createTransport(config);
-
-  transporter.sendMail(
-    {
-      from: "shafiarahman572@gmail.com", // verified sender email
-      to: "shafiarahmanchy13@gmail.com", // recipient email
-      subject: `Your booking for ${name} is confirmed`, // Subject line
-      text: "Hello world!", // plain text body
-      html: `
-      <h3>Your appointment is confirmed</h3>
-      <div>
-          <p>Your booking for: ${name} is successful</p>
-          <p>Please visit us on ${bookingDate} at ${selectedTime}</p>
-          <p>Thanks from Bistro Boss.</p>
-      </div>
-      
-      `, // html body
-    },
-    function (error, info) {
-      if (error) {
-        console.log("Email send error", error);
-      } else {
-        console.log("Email sent: " + info);
-      }
-    }
-  );
-}
-
 function verifyJWT(req, res, next) {
   const authHeader = req.headers.authorization;
 
